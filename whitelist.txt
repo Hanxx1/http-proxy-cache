@@ -1,0 +1,3 @@
+# 域名白名单示例
+github.com
+google.com

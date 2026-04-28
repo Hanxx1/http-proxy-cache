@@ -1,0 +1,3 @@
+# 域名黑名单示例
+baidu.com
+tencent.com
