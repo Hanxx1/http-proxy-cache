@@ -36,6 +36,9 @@ class FakeRemoteSocket:
     def __exit__(self, exc_type, exc, tb):
         return False
 
+    def settimeout(self, seconds):
+        pass
+
     def recv(self, _size):
         if self._read_once:
             return b""
@@ -61,6 +64,32 @@ def test_handler_blocked_returns_403():
     assert b"403 Forbidden" in client.sent
     assert client.closed is True
     log_mock.assert_called_once()
+
+
+def test_handler_post_with_body():
+    ProxyHandler._cache = CacheManager()
+    post_body = b"key=value&foo=bar"
+    cl = len(post_body)
+    req = (
+        f"POST http://example.com/api HTTP/1.1\r\n"
+        f"Host: example.com\r\n"
+        f"Content-Type: application/x-www-form-urlencoded\r\n"
+        f"Content-Length: {cl}\r\n"
+        f"\r\n"
+    ).encode() + post_body
+    resp = b"HTTP/1.1 201 Created\r\nContent-Length: 5\r\n\r\nhello"
+    client = FakeClientSocket(req)
+    remote = FakeRemoteSocket(resp)
+
+    with patch("proxy.handler.is_allowed", return_value=True), patch(
+        "proxy.handler.socket.create_connection", return_value=remote
+    ), patch("proxy.handler.log_request"):
+        ProxyHandler.handle(client, ("127.0.0.1", 12345))
+
+    outbound_text = remote.sent.decode("iso-8859-1", errors="ignore")
+    assert outbound_text.startswith("POST /api HTTP/1.1")
+    assert "key=value&foo=bar" in outbound_text
+    assert b"201 Created" in client.sent
 
 
 def test_handler_forwards_http_and_rewrites_headers():

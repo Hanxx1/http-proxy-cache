@@ -1,13 +1,9 @@
 import os
 from collections import Counter
 
-import logger.logger
+from logger.logger import get_log_dir
 
 _LOG_FILES = ["proxy.log"]
-
-
-def _log_dir():
-    return logger.logger._LOG_DIR
 
 
 def _read_logs():
@@ -15,7 +11,7 @@ def _read_logs():
     if os.path.exists(_LOG_FILES[0]):
         with open(_LOG_FILES[0], "r", encoding="utf-8") as f:
             lines.extend(f.readlines())
-    log_dir = _log_dir()
+    log_dir = get_log_dir()
     if os.path.isdir(log_dir):
         for fname in sorted(os.listdir(log_dir)):
             path = os.path.join(log_dir, fname)

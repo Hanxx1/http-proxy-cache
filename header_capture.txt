@@ -1,7 +1,0 @@
-GET /test HTTP/1.1
-Host: 127.0.0.1:18080
-Accept: */*
-User-Agent: header-test
-X-Proxy-Server: http-proxy-cache
-Connection: close
-

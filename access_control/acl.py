@@ -1,21 +1,15 @@
-import os
 from pathlib import Path
+from config import ACL_FILE, WHITELIST_FILE, IP_BLACKLIST_FILE, ACL_MODE
 
-# 默认控制模式: "blacklist" 或 "whitelist"
-MODE = "blacklist"
-
-# 配置文件路径
-ACL_FILE = "acl.txt"
-WHITELIST_FILE = "whitelist.txt"
-IP_BLACKLIST_FILE = "ip_blacklist.txt"
+# Runtime modifiable mode
+_MODE = ACL_MODE
 
 
-def _read_config_file(file_path: str) -> list[str]:
-    """读取配置文件，忽略空行和首尾空格"""
+def _read_config_file(file_path):
+    """Read a config file, ignoring empty lines and comments."""
     path = Path(file_path)
     if not path.exists():
         return []
-    
     try:
         with open(path, "r", encoding="utf-8") as f:
             return [line.strip() for line in f if line.strip() and not line.strip().startswith("#")]
@@ -23,48 +17,94 @@ def _read_config_file(file_path: str) -> list[str]:
         return []
 
 
+def _write_config_file(file_path, lines):
+    """Write lines to a config file."""
+    path = Path(file_path)
+    with open(path, "w", encoding="utf-8") as f:
+        for item in lines:
+            f.write(f"{item}\n")
+
+
+def domain_match(host, rule):
+    """Check if host matches a domain rule with subdomain support.
+
+    Examples:
+        domain_match("www.baidu.com", "baidu.com") → True
+        domain_match("map.baidu.com", "baidu.com") → True
+        domain_match("fakebaidu.com", "baidu.com") → False
+    """
+    host = host.lower().strip(".")
+    rule = rule.lower().strip(".")
+    return host == rule or host.endswith("." + rule)
+
+
 def init_templates():
-    """在根目录生成三个控制列表的示例模板"""
+    """Create template config files if they don't exist."""
     templates = {
-        ACL_FILE: "# 域名黑名单示例\nbaidu.com\ntencent.com\n",
-        WHITELIST_FILE: "# 域名白名单示例\ngithub.com\ngoogle.com\n",
-        IP_BLACKLIST_FILE: "# IP黑名单示例\n# 127.0.0.1 (本地测试时请勿开启，否则会拦截所有本地请求)\n192.168.1.100\n"
+        ACL_FILE: "# Domain blacklist\nbaidu.com\ntencent.com\n",
+        WHITELIST_FILE: "# Domain whitelist\ngithub.com\ngoogle.com\n",
+        IP_BLACKLIST_FILE: "# IP blacklist\n# 127.0.0.1\n192.168.1.100\n",
     }
-    
-    for file_name, content in templates.items():
-        path = Path(file_name)
+    for file_path, content in templates.items():
+        path = Path(file_path)
         if not path.exists():
             with open(path, "w", encoding="utf-8") as f:
                 f.write(content)
 
 
-def is_allowed(host: str, client_ip: str = None) -> bool:
-    """
-    核心接口：判断请求是否允许访问
-    1. 优先检查 IP 黑名单
-    2. 根据 MODE 检查域名黑名单或白名单
-    """
-    # 1. 检查 IP 黑名单
+def get_mode():
+    return _MODE
+
+
+def set_mode(mode):
+    global _MODE
+    if mode not in ("blacklist", "whitelist", "off"):
+        raise ValueError("mode must be 'blacklist', 'whitelist', or 'off'")
+    _MODE = mode
+
+
+def is_allowed(host, client_ip=None):
+    if _MODE == "off":
+        return True
+
     if client_ip:
         ip_blacklist = _read_config_file(IP_BLACKLIST_FILE)
         if client_ip in ip_blacklist:
             return False
 
-    # 2. 根据模式检查域名
-    if MODE == "whitelist":
+    if _MODE == "whitelist":
         whitelist = _read_config_file(WHITELIST_FILE)
-        # 如果域名不在白名单中，拒绝访问
-        return host in whitelist
-    else:
-        # 默认黑名单模式
-        blacklist = _read_config_file(ACL_FILE)
-        # 如果域名在黑名单中，拒绝访问
-        return host not in blacklist
+        return any(domain_match(host, rule) for rule in whitelist)
+
+    blacklist = _read_config_file(ACL_FILE)
+    if any(domain_match(host, rule) for rule in blacklist):
+        return False
+    return True
 
 
-# 初始化模板文件
+def load_acl_config():
+    return {
+        "mode": _MODE,
+        "blacklist": _read_config_file(ACL_FILE),
+        "whitelist": _read_config_file(WHITELIST_FILE),
+        "ip_blacklist": _read_config_file(IP_BLACKLIST_FILE),
+    }
+
+
+def update_acl_config(data):
+    global _MODE
+    if "mode" in data:
+        set_mode(data["mode"])
+    if "blacklist" in data:
+        _write_config_file(ACL_FILE, data["blacklist"])
+    if "whitelist" in data:
+        _write_config_file(WHITELIST_FILE, data["whitelist"])
+    if "ip_blacklist" in data:
+        _write_config_file(IP_BLACKLIST_FILE, data["ip_blacklist"])
+
+
+# Auto-initialize templates on import
 if __name__ == "__main__":
     init_templates()
 else:
-    # 模块被导入时也尝试初始化（如果文件不存在）
     init_templates()

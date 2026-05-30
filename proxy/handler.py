@@ -33,7 +33,32 @@ class ProxyHandler:
             if not chunk:
                 break
             data += chunk
-        return data
+
+        if b"\r\n\r\n" not in data:
+            return data
+
+        head, _, body_so_far = data.partition(b"\r\n\r\n")
+
+        # Parse Content-Length from headers to read remaining body
+        content_length = 0
+        head_text = head.decode("iso-8859-1", errors="ignore")
+        for line in head_text.split("\r\n")[1:]:
+            if ":" not in line:
+                continue
+            key, value = line.split(":", 1)
+            if key.strip().lower() == "content-length" and value.strip().isdigit():
+                content_length = int(value.strip())
+                break
+
+        remaining = content_length - len(body_so_far)
+        while remaining > 0:
+            chunk = client_socket.recv(min(4096, remaining))
+            if not chunk:
+                break
+            body_so_far += chunk
+            remaining -= len(chunk)
+
+        return head + b"\r\n\r\n" + body_so_far
 
     @staticmethod
     def _parse_request(request_data):
@@ -105,14 +130,80 @@ class ProxyHandler:
         return head_bytes + body
 
     @staticmethod
-    def _read_full_response(remote_socket):
-        chunks = []
-        while True:
-            data = remote_socket.recv(4096)
-            if not data:
+    def _read_response(remote_socket):
+        """Read HTTP response from remote server, handling Content-Length and chunked encoding."""
+        remote_socket.settimeout(15)
+
+        data = b""
+        while b"\r\n\r\n" not in data and len(data) < ProxyHandler._buffer_size:
+            chunk = remote_socket.recv(4096)
+            if not chunk:
                 break
-            chunks.append(data)
-        return b"".join(chunks)
+            data += chunk
+
+        if b"\r\n\r\n" not in data:
+            return data
+
+        head, _, body_so_far = data.partition(b"\r\n\r\n")
+
+        content_length = 0
+        chunked = False
+        head_text = head.decode("iso-8859-1", errors="ignore")
+        for line in head_text.split("\r\n")[1:]:
+            if ":" not in line:
+                continue
+            key, value = line.split(":", 1)
+            k = key.strip().lower()
+            if k == "content-length" and value.strip().isdigit():
+                content_length = int(value.strip())
+            if k == "transfer-encoding" and "chunked" in value.strip().lower():
+                chunked = True
+
+        # Parse chunked transfer encoding
+        if chunked:
+            buf = body_so_far
+            while True:
+                try:
+                    chunk = remote_socket.recv(4096)
+                    if not chunk:
+                        break
+                    buf += chunk
+                except socket.timeout:
+                    break
+                # Check if we have the terminating chunk: 0\r\n\r\n
+                if b"0\r\n\r\n" in buf or buf.endswith(b"0\r\n\r\n"):
+                    break
+                # Also check for 0\r\n at the end of a line
+                head_part = buf.split(b"\r\n")
+                if len(head_part) >= 2 and head_part[-2].strip() == b"0":
+                    if buf.endswith(b"\r\n"):
+                        break
+            return head + b"\r\n\r\n" + buf
+
+        if content_length > 0:
+            remaining = content_length - len(body_so_far)
+            while remaining > 0:
+                try:
+                    chunk = remote_socket.recv(min(4096, remaining))
+                    if not chunk:
+                        break
+                    body_so_far += chunk
+                    remaining -= len(chunk)
+                except socket.timeout:
+                    break
+            return head + b"\r\n\r\n" + body_so_far
+
+        # Fallback: read until close (with timeout)
+        chunks = [body_so_far]
+        while True:
+            try:
+                chunk = remote_socket.recv(4096)
+                if not chunk:
+                    break
+                chunks.append(chunk)
+            except socket.timeout:
+                break
+        return head + b"\r\n\r\n" + b"".join(chunks)
 
     @staticmethod
     def _parse_status_code(response_data):
@@ -186,7 +277,7 @@ class ProxyHandler:
         try:
             with socket.create_connection((host, port), timeout=10) as remote_socket:
                 remote_socket.sendall(outbound)
-                response = ProxyHandler._read_full_response(remote_socket)
+                response = ProxyHandler._read_response(remote_socket)
         except Exception:
             client_socket.sendall(b"HTTP/1.1 502 Bad Gateway\r\nConnection: close\r\n\r\n")
             log_request(addr, method_upper, url, 502, False)
@@ -215,6 +306,7 @@ class ProxyHandler:
             host, port, url, path = ProxyHandler._extract_target(method, target, headers)
             if not host:
                 client_socket.sendall(b"HTTP/1.1 400 Bad Request\r\nConnection: close\r\n\r\n")
+                log_request(addr, method, url, 400, False)
                 return
 
             if method.upper() == "CONNECT":
@@ -225,6 +317,7 @@ class ProxyHandler:
                 )
         except Exception as e:
             print(f"[!] Handler Error: {e}")
+            log_request(addr, "UNKNOWN", "unknown", 500, False)
             try:
                 client_socket.sendall(b"HTTP/1.1 500 Internal Server Error\r\nConnection: close\r\n\r\n")
             except Exception:
