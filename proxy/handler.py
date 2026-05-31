@@ -2,7 +2,7 @@ import select
 import socket
 from urllib.parse import urlsplit
 
-from access_control.acl import is_allowed
+from access_control.acl import get_block_reason, is_allowed
 from cache.cache_manager import CacheManager
 from logger.logger import log_request
 
@@ -214,14 +214,48 @@ class ProxyHandler:
         return 502
 
     @staticmethod
-    def _send_403(client_socket):
+    def _send_blocked(client_socket, host, reason):
+        body = (
+            '<!doctype html><html lang="en"><head>'
+            '<meta charset="utf-8">'
+            '<meta name="viewport" content="width=device-width,initial-scale=1">'
+            '<title>403 — Access Denied</title>'
+            '<style>'
+            ':root{--bg:#f5f5f5;--card:#fff;--text:#333;--muted:#666;--red:#c0392b;--line:#e0e0e0}'
+            '*{box-sizing:border-box;margin:0}'
+            'body{display:flex;align-items:center;justify-content:center;min-height:100vh;'
+            'font-family:system-ui,-apple-system,sans-serif;background:var(--bg);color:var(--text)}'
+            '.card{max-width:540px;width:90%;padding:40px 36px;border-radius:12px;'
+            'background:var(--card);box-shadow:0 2px 12px rgba(0,0,0,.08);text-align:center}'
+            '.icon{width:64px;height:64px;margin:0 auto 20px;border-radius:50%;'
+            'background:#fde8e8;display:flex;align-items:center;justify-content:center;font-size:32px}'
+            'h1{font-size:22px;font-weight:700;margin-bottom:8px;color:var(--red)}'
+            'p{color:var(--muted);line-height:1.6;margin:6px 0}'
+            '.row{display:flex;justify-content:space-between;padding:8px 0;'
+            'border-bottom:1px solid var(--line);font-size:13px}'
+            '.row span:first-child{color:var(--muted)}'
+            '.row span:last-child{font-weight:600}'
+            '.info{margin:20px 0;background:#fafafa;border-radius:8px;padding:14px 16px}'
+            '.foot{margin-top:18px;font-size:12px;color:var(--muted)}'
+            '</style></head><body><div class="card">'
+            f'<div class="icon">⛔</div>'
+            f'<h1>Access Denied</h1>'
+            f'<p>This request was blocked by the proxy access control policy.</p>'
+            f'<div class="info">'
+            f'<div class="row"><span>Blocked Host</span><span>{host}</span></div>'
+            f'<div class="row"><span>Reason</span><span>{reason}</span></div>'
+            f'<div class="row"><span>Status</span><span>403 Forbidden</span></div>'
+            f'</div>'
+            f'<p class="foot">HTTP Proxy Cache &mdash; Access Control</p>'
+            '</div></body></html>'
+        ).encode("utf-8")
         response = (
             "HTTP/1.1 403 Forbidden\r\n"
-            "Content-Type: text/html\r\n"
+            f"Content-Length: {len(body)}\r\n"
+            "Content-Type: text/html; charset=utf-8\r\n"
             "Connection: close\r\n"
             "\r\n"
-            "<html><body><h1>403 Forbidden</h1><p>Access Denied by Proxy ACL.</p></body></html>"
-        ).encode("utf-8")
+        ).encode("utf-8") + body
         client_socket.sendall(response)
 
     @staticmethod
@@ -243,7 +277,7 @@ class ProxyHandler:
     @staticmethod
     def _handle_connect(client_socket, addr, host, port, url):
         if not is_allowed(host, addr[0]):
-            ProxyHandler._send_403(client_socket)
+            ProxyHandler._send_blocked(client_socket, host, get_block_reason(host, addr[0]))
             log_request(addr, "CONNECT", url, 403, False)
             return
 
@@ -259,7 +293,7 @@ class ProxyHandler:
     @staticmethod
     def _handle_http(client_socket, addr, method, host, port, url, path, version, headers, body):
         if not is_allowed(host, addr[0]):
-            ProxyHandler._send_403(client_socket)
+            ProxyHandler._send_blocked(client_socket, host, get_block_reason(host, addr[0]))
             log_request(addr, method, url, 403, False)
             return
 

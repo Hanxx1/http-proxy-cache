@@ -4,7 +4,7 @@ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 from urllib.parse import parse_qs, urlparse
 
-from access_control.acl import load_acl_config
+from access_control.acl import load_acl_config, update_acl_config
 from config import ADMIN_HOST, ADMIN_PORT, BASE_DIR, PROXY_HOST, PROXY_PORT
 from logger.logger import get_latest_logs, get_log_dir
 from proxy.handler import ProxyHandler
@@ -108,8 +108,25 @@ class AdminRequestHandler(BaseHTTPRequestHandler):
             self._send_json(clear_cache_entries())
         elif parsed.path == "/api/logs/clear":
             self._send_json(clear_logs())
+        elif parsed.path == "/api/acl":
+            body = self._read_json_body()
+            if body is None:
+                self._send_json({"error": "invalid JSON"}, status=400)
+                return
+            update_acl_config(body)
+            self._send_json(load_acl_config())
         else:
             self._send_json({"error": "not found"}, status=404)
+
+    def _read_json_body(self):
+        try:
+            length = int(self.headers.get("Content-Length", 0))
+            if length == 0:
+                return {}
+            raw = self.rfile.read(length)
+            return json.loads(raw)
+        except Exception:
+            return None
 
     def _handle_api(self, parsed):
         query = parse_qs(parsed.query)

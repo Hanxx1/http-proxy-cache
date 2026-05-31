@@ -62,6 +62,7 @@ def test_handler_blocked_returns_403():
         ProxyHandler.handle(client, ("127.0.0.1", 12345))
 
     assert b"403 Forbidden" in client.sent
+    assert b"Access Denied" in client.sent
     assert client.closed is True
     log_mock.assert_called_once()
 

@@ -303,6 +303,123 @@ td {
   color: #26343f;
 }
 
+.acl-entry {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.acl-entry-text {
+  word-break: break-all;
+}
+
+.acl-actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.acl-actions span {
+  font-size: 13px;
+}
+
+.mini-btn {
+  min-width: auto;
+  height: 24px;
+  padding: 0 8px;
+  border: 1px solid var(--line);
+  border-radius: 4px;
+  background: var(--panel);
+  color: var(--text);
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.mini-btn:hover {
+  background: var(--panel-2);
+}
+
+.remove-btn {
+  border-color: transparent;
+  color: var(--bad);
+  font-size: 16px;
+  line-height: 1;
+  padding: 0 4px;
+  min-width: auto;
+  background: transparent;
+}
+
+.remove-btn:hover {
+  background: #fae6ea;
+}
+
+/* ─── ACL inline editing ─────────────────── */
+
+.acl-input-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 0;
+}
+
+.acl-inline-input {
+  flex: 1;
+  height: 30px;
+  padding: 0 8px;
+  border: 1px solid var(--accent);
+  border-radius: 4px;
+  font: inherit;
+  font-size: 13px;
+  outline: none;
+}
+
+.acl-inline-input:focus {
+  box-shadow: 0 0 0 2px rgba(18, 108, 97, 0.2);
+}
+
+.confirm-btn {
+  color: var(--accent);
+  border-color: var(--accent);
+}
+
+.confirm-btn:hover {
+  background: #e5f4ef;
+}
+
+.cancel-btn {
+  color: var(--muted);
+  border-color: var(--line);
+}
+
+.cancel-btn:hover {
+  background: var(--line);
+}
+
+/* ─── Charts ─────────────────────────────── */
+
+.chart-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+  margin-bottom: 12px;
+}
+
+.chart-box {
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--panel);
+  box-shadow: var(--shadow);
+  overflow: hidden;
+}
+
+.chart-body {
+  position: relative;
+  height: 280px;
+  padding: 12px 16px 16px;
+}
+
 .empty {
   color: var(--muted);
 }
@@ -324,7 +441,8 @@ td {
 
   .metrics,
   .dashboard-grid,
-  .acl-grid {
+  .acl-grid,
+  .chart-row {
     grid-template-columns: 1fr;
   }
 

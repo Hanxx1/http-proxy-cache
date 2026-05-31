@@ -1,154 +1,160 @@
 <!doctype html>
 <html lang="en">
-  <head>
-    <meta charset="utf-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>HTTP Proxy Dashboard</title>
-    <link rel="stylesheet" href="/style.css">
-  </head>
-  <body>
-    <main class="app-shell">
-      <header class="topbar">
-        <div>
-          <h1>HTTP Proxy Dashboard</h1>
-          <p id="status-line">Loading status...</p>
-        </div>
-        <div class="toolbar">
-          <label class="toggle">
-            <input id="auto-refresh" type="checkbox" checked>
-            <span>Auto</span>
-          </label>
-          <button id="refresh-button" type="button" title="Refresh data">Refresh</button>
-        </div>
-      </header>
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>HTTP Proxy Dashboard</title>
+  <link rel="stylesheet" href="/style.css">
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+</head>
+<body>
+  <main class="app-shell">
+    <header class="topbar">
+      <div>
+        <h1>HTTP Proxy Dashboard</h1>
+        <p id="status-line">Loading status...</p>
+      </div>
+      <div class="toolbar">
+        <label class="toggle">
+          <input id="auto-refresh" type="checkbox" checked>
+          <span>Auto</span>
+        </label>
+        <button id="refresh-button" type="button" title="Refresh data">Refresh</button>
+      </div>
+    </header>
 
-      <section class="metrics" aria-label="Proxy metrics">
-        <article class="metric">
-          <span>Total Requests</span>
-          <strong id="metric-total">0</strong>
-        </article>
-        <article class="metric">
-          <span>Hit Rate</span>
-          <strong id="metric-rate">0.00%</strong>
-        </article>
-        <article class="metric">
-          <span>Cache Items</span>
-          <strong id="metric-cache">0</strong>
-        </article>
-        <article class="metric">
-          <span>ACL Mode</span>
-          <strong id="metric-acl">blacklist</strong>
-        </article>
+    <section class="metrics" aria-label="Proxy metrics">
+      <article class="metric">
+        <span>Total Requests</span>
+        <strong id="metric-total">0</strong>
+      </article>
+      <article class="metric">
+        <span>Hit Rate</span>
+        <strong id="metric-rate">0.00%</strong>
+      </article>
+      <article class="metric">
+        <span>Cache Items</span>
+        <strong id="metric-cache">0</strong>
+      </article>
+      <article class="metric">
+        <span>ACL Mode</span>
+        <strong id="metric-acl">blacklist</strong>
+      </article>
+    </section>
+
+    <section class="chart-row">
+      <div class="chart-box panel">
+        <div class="panel-head"><h2>Hit / Miss</h2></div>
+        <div class="chart-body"><canvas id="chart-hitmiss"></canvas></div>
+      </div>
+      <div class="chart-box panel">
+        <div class="panel-head"><h2>Top URLs</h2></div>
+        <div class="chart-body"><canvas id="chart-tops"></canvas></div>
+      </div>
+    </section>
+
+    <section class="dashboard-grid">
+      <section class="panel">
+        <div class="panel-head">
+          <h2>Top URLs</h2>
+          <span id="top-url-count">0 items</span>
+        </div>
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr><th>URL</th><th class="num">Count</th></tr>
+            </thead>
+            <tbody id="top-url-body"></tbody>
+          </table>
+        </div>
       </section>
 
-      <section class="dashboard-grid">
-        <section class="panel">
-          <div class="panel-head">
-            <h2>Top URLs</h2>
-            <span id="top-url-count">0 items</span>
-          </div>
-          <div class="table-wrap">
-            <table>
-              <thead>
-                <tr>
-                  <th>URL</th>
-                  <th class="num">Count</th>
-                </tr>
-              </thead>
-              <tbody id="top-url-body"></tbody>
-            </table>
-          </div>
-        </section>
-
-        <section class="panel">
-          <div class="panel-head">
-            <h2>Cache</h2>
-            <span id="cache-meta">0 / 0</span>
-          </div>
-          <div class="table-wrap">
-            <table>
-              <thead>
-                <tr>
-                  <th>URL</th>
-                  <th class="num">Size</th>
-                  <th class="num">Hits</th>
-                  <th>Expires</th>
-                </tr>
-              </thead>
-              <tbody id="cache-body"></tbody>
-            </table>
-          </div>
-        </section>
-
-        <section class="panel wide">
-          <div class="panel-head">
-            <div>
-              <h2>Recent Logs</h2>
-              <span id="log-count">0 rows</span>
-            </div>
-            <div class="filters" aria-label="Log filters">
-              <label>
-                <span>Method</span>
-                <select id="method-filter">
-                  <option value="all">All</option>
-                  <option value="GET">GET</option>
-                  <option value="POST">POST</option>
-                  <option value="CONNECT">CONNECT</option>
-                </select>
-              </label>
-              <label>
-                <span>Cache</span>
-                <select id="cache-filter">
-                  <option value="all">All</option>
-                  <option value="HIT">HIT</option>
-                  <option value="MISS">MISS</option>
-                </select>
-              </label>
-              <label class="toggle">
-                <input id="hide-connect" type="checkbox" checked>
-                <span>Hide CONNECT</span>
-              </label>
-            </div>
-          </div>
-          <div class="table-wrap log-table">
-            <table>
-              <thead>
-                <tr>
-                  <th>Time</th>
-                  <th>IP</th>
-                  <th>Method</th>
-                  <th>Status</th>
-                  <th>Cache</th>
-                  <th>URL</th>
-                </tr>
-              </thead>
-              <tbody id="log-body"></tbody>
-            </table>
-          </div>
-        </section>
-
-        <section class="panel wide acl-panel">
-          <div class="panel-head">
-            <h2>Access Control</h2>
-            <span id="acl-meta">Read only</span>
-          </div>
-          <div class="acl-grid">
-            <div>
-              <h3>Blacklist</h3>
-              <ul id="acl-blacklist"></ul>
-            </div>
-            <div>
-              <h3>Whitelist</h3>
-              <ul id="acl-whitelist"></ul>
-            </div>
-            <div>
-              <h3>IP Blacklist</h3>
-              <ul id="acl-ip"></ul>
-            </div>
-          </div>
-        </section>
+      <section class="panel">
+        <div class="panel-head">
+          <h2>Cache</h2>
+          <span id="cache-meta">0 / 0</span>
+        </div>
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr><th>URL</th><th class="num">Size</th><th class="num">Hits</th><th>Expires</th></tr>
+            </thead>
+            <tbody id="cache-body"></tbody>
+          </table>
+        </div>
       </section>
-    </main>
-    <script src="/app.js"></script>
-  </body>
+
+      <section class="panel wide">
+        <div class="panel-head">
+          <div>
+            <h2>Recent Logs</h2>
+            <span id="log-count">0 rows</span>
+          </div>
+          <div class="filters" aria-label="Log filters">
+            <label>
+              <span>Method</span>
+              <select id="method-filter">
+                <option value="all">All</option>
+                <option value="GET">GET</option>
+                <option value="POST">POST</option>
+                <option value="CONNECT">CONNECT</option>
+              </select>
+            </label>
+            <label>
+              <span>Cache</span>
+              <select id="cache-filter">
+                <option value="all">All</option>
+                <option value="HIT">HIT</option>
+                <option value="MISS">MISS</option>
+              </select>
+            </label>
+            <label class="toggle">
+              <input id="hide-connect" type="checkbox" checked>
+              <span>Hide CONNECT</span>
+            </label>
+          </div>
+        </div>
+        <div class="table-wrap log-table">
+          <table>
+            <thead>
+              <tr><th>Time</th><th>IP</th><th>Method</th><th>Status</th><th>Cache</th><th>URL</th></tr>
+            </thead>
+            <tbody id="log-body"></tbody>
+          </table>
+        </div>
+      </section>
+
+      <section class="panel wide acl-panel">
+        <div class="panel-head">
+          <h2>Access Control — <span id="acl-mode-label">blacklist</span></h2>
+          <div class="acl-actions">
+            <button id="acl-save-btn" type="button">Save Changes</button>
+            <span id="acl-meta-msg"></span>
+          </div>
+        </div>
+        <div class="acl-grid">
+          <div>
+            <h3>Blacklist
+              <button class="mini-btn" data-list="blacklist" data-action="add">+ Add</button>
+            </h3>
+            <ul id="acl-blacklist"></ul>
+          </div>
+          <div>
+            <h3>Whitelist
+              <button class="mini-btn" data-list="whitelist" data-action="add">+ Add</button>
+            </h3>
+            <ul id="acl-whitelist"></ul>
+          </div>
+          <div>
+            <h3>IP Blacklist
+              <button class="mini-btn" data-list="ip_blacklist" data-action="add">+ Add</button>
+            </h3>
+            <ul id="acl-ip"></ul>
+          </div>
+        </div>
+      </section>
+    </section>
+  </main>
+  <script src="/app.js"></script>
+</body>
 </html>

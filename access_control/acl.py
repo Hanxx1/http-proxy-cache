@@ -82,6 +82,28 @@ def is_allowed(host, client_ip=None):
     return True
 
 
+def get_block_reason(host, client_ip=None):
+    if _MODE == "off":
+        return None
+
+    if client_ip:
+        ip_blacklist = _read_config_file(IP_BLACKLIST_FILE)
+        if client_ip in ip_blacklist:
+            return f"IP address {client_ip} is blocked by IP blacklist"
+
+    if _MODE == "whitelist":
+        whitelist = _read_config_file(WHITELIST_FILE)
+        if not any(domain_match(host, rule) for rule in whitelist):
+            return f"Domain {host} is not in the whitelist"
+        return None
+
+    blacklist = _read_config_file(ACL_FILE)
+    for rule in blacklist:
+        if domain_match(host, rule):
+            return f"Domain {host} matched blacklist rule: {rule}"
+    return None
+
+
 def load_acl_config():
     return {
         "mode": _MODE,
