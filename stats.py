@@ -1,22 +1,41 @@
-import os
 from collections import Counter
+from pathlib import Path
 
 from logger.logger import get_log_dir
 
 _LOG_FILES = ["proxy.log"]
 
 
+def _iter_log_paths():
+    seen = set()
+
+    for fname in _LOG_FILES:
+        path = Path(fname)
+        if path.is_file():
+            resolved = path.resolve()
+            if resolved not in seen:
+                seen.add(resolved)
+                yield path
+
+    log_dir = Path(get_log_dir())
+    if not log_dir.is_dir():
+        return
+
+    for path in sorted(log_dir.glob("*.log")):
+        if not path.is_file():
+            continue
+        resolved = path.resolve()
+        if resolved in seen:
+            continue
+        seen.add(resolved)
+        yield path
+
+
 def _read_logs():
     lines = []
-    if os.path.exists(_LOG_FILES[0]):
-        with open(_LOG_FILES[0], "r", encoding="utf-8") as f:
+    for path in _iter_log_paths():
+        with open(path, "r", encoding="utf-8") as f:
             lines.extend(f.readlines())
-    log_dir = get_log_dir()
-    if os.path.isdir(log_dir):
-        for fname in sorted(os.listdir(log_dir)):
-            path = os.path.join(log_dir, fname)
-            with open(path, "r", encoding="utf-8") as f:
-                lines.extend(f.readlines())
     return lines
 
 

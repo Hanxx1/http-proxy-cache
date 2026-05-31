@@ -73,6 +73,16 @@ def test_stats_does_not_crash_with_no_files():
     mod._LOG_DIR = orig_log_files
 
 
+def test_read_logs_handles_empty_log_file_list(tmp_path, monkeypatch):
+    import logger.logger as logger_mod
+    import stats as stats_mod
+
+    monkeypatch.setattr(stats_mod, "_LOG_FILES", [])
+    monkeypatch.setattr(logger_mod, "_LOG_DIR", str(tmp_path / "missing_logs"))
+
+    assert stats_mod._read_logs() == []
+
+
 def test_stats_from_real_logs():
     """Write real logs then parse them with stats."""
     orig_dir = mod._LOG_DIR

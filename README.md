@@ -20,6 +20,12 @@ python main.py
 
 看到 `[*] Proxy Server started on 127.0.0.1:8080` 即启动成功。
 
+管理页会同时启动：
+
+```text
+http://127.0.0.1:8081
+```
+
 ---
 
 ## 演示步骤
@@ -130,7 +136,10 @@ Edge 同时打开多个标签页访问不同网站，所有请求独立记录、
 | HTTPS 隧道 | Edge 访问 HTTPS 网站 | 页面正常，日志有 CONNECT 200 |
 | 并发 | 打开多个标签页 | 日志独立不交错 |
 | 统计 | `python stats.py` | 请求数、命中率、热门 URL |
+| 管理页 | 打开 `http://127.0.0.1:8081` | 访问次数、命中率、热门 URL、日志、缓存、ACL |
 | 请求头修改 | 访问 httpbin.org/headers | 看到 X-Proxy-Server |
+
+管理页的 `Recent Logs` 支持按方法、HIT/MISS 过滤，并默认隐藏 `CONNECT` 请求，便于演示 HTTP 缓存效果。
 
 ---
 
@@ -141,6 +150,7 @@ Edge 同时打开多个标签页访问不同网站，所有请求独立记录、
 | 配置项 | 默认值 | 说明 |
 |--------|--------|------|
 | `PROXY_PORT` | `8080` | 监听端口 |
+| `ADMIN_PORT` | `8081` | 管理页端口 |
 | `CACHE_TTL_SECONDS` | `60` | 缓存过期秒数 |
 | `CACHE_MAX_ITEMS` | `128` | 最大缓存条目 |
 | `ACL_MODE` | `blacklist` | `blacklist` / `whitelist` / `off` |

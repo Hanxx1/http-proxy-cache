@@ -5,6 +5,9 @@ BASE_DIR = Path(__file__).resolve().parent
 PROXY_HOST = "127.0.0.1"
 PROXY_PORT = 8080
 
+ADMIN_HOST = "127.0.0.1"
+ADMIN_PORT = 8081
+
 CACHE_TTL_SECONDS = 60
 CACHE_MAX_ITEMS = 128
 
