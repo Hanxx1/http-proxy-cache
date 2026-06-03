@@ -26,7 +26,12 @@ def _write_config_file(file_path, lines):
 
 
 def domain_match(host, rule):
-    """Check if host matches a domain rule with subdomain support.
+    """子域名匹配算法 —— 后缀匹配 + 边界检查。
+
+    课程关联：字符串匹配算法（数据结构/算法课程）
+    关键设计：host.endswith("." + rule) 确保匹配的是完整域名标签，
+    而非任意子串。例如 "baidu.com" 匹配 "www.baidu.com" 但不匹配
+    "fakebaidu.com"（因为后者不以 ".baidu.com" 结尾）。
 
     Examples:
         domain_match("www.baidu.com", "baidu.com") → True
@@ -64,6 +69,17 @@ def set_mode(mode):
 
 
 def is_allowed(host, client_ip=None):
+    """访问控制决策 —— 防火墙规则的软件实现。
+
+    课程关联：网络安全 — 防火墙/访问控制列表 (ACL)
+    决策流程（短路求值，找到第一个匹配即返回）：
+    1. 模式为 off → 全部放行
+    2. 客户端 IP 在 IP 黑名单中 → 拒绝
+    3. 模式为 whitelist → 仅白名单域名放行
+    4. 模式为 blacklist → 黑名单域名拒绝，其余放行
+
+    每次调用都重新读取配置文件，支持运行时热更新（无需重启）。
+    """
     if _MODE == "off":
         return True
 

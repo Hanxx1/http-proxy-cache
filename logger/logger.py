@@ -1,3 +1,15 @@
+"""日志模块 —— 按日期滚动的线程安全日志系统。
+
+课内知识点：
+- 文件 I/O: open/read/write（操作系统文件系统章节）
+- 线程安全: threading.Lock() 保护写操作（并发编程）
+- 日志轮转: 按日期创建不同文件，避免单文件过大
+- 延迟初始化: _LOG_DIR 在首次使用时才从 config 读取，便于测试 mock
+
+日志格式（空格分隔，便于 grep/awk 分析）:
+    YYYY-MM-DD HH:MM:SS | 客户端IP | 方法 | URL | 状态码 | HIT/MISS
+"""
+
 import os
 import threading
 from datetime import datetime

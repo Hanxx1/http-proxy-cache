@@ -11,6 +11,9 @@ class FakeClientSocket:
         self.closed = False
         self._read_once = False
 
+    def settimeout(self, seconds):
+        pass
+
     def recv(self, _size):
         if self._read_once:
             return b""
